@@ -4,7 +4,6 @@ Class accept a dictionary of known keys, parses each string according to a set o
 The each element of parsed strings is split in a tuple ranked based on the the order that they are found in the ACTIONS_DICT for that element's Class keyname. You can make custom rules for each key if they do not all meet a certain pattern
 EXAMPLE_INPUT_DICT = dict(
     Genie=dict(
-        n_trials=500,
         config_file_path="mmt_debug.py.debug_settings",
         refine=dict(
             grid_n=5,
@@ -39,7 +38,7 @@ EXAMPLE_INPUT_DICT = dict(
 )
 
 Output e.g. id    parsed_string                      functions_to_evaluate
-             0    ('Genie','config_file_path.config_dict_name','n_trials=500','refine','grid_n','max_variance=5')      ('genie','genie_obj = Genie_obj('config_file_path.config_dict_name')','genie_obj.n_trials = 500','refine','genie_obj.refine.strategy_seeds = strategy_seeds','genie_obj.refine.grid_n_n(variance=5)','genie_obj.run()')
+             0    ('Genie','config_file_path.config_dict_name','refine','grid_n','max_variance=5')      ('genie','genie_obj = Genie_obj('config_file_path.config_dict_name')','genie_obj.n_trials = 500','refine','genie_obj.refine.strategy_seeds = strategy_seeds','genie_obj.refine.grid_n_n(variance=5)','genie_obj.run()')
              2    ('MIP','agg')                                                                 ('MIP','mip_obj = MIP_obj(pf_params_and_metrics_df)','mip_obj.agg = previous_mip_values','mip_obj.run()')
              3    ('Neighbors','n_neighbors = 20')                                              ('Neighbors','neighbors_obj = Neighbors_obj(pf_params_and_metrics_df or pf_params_df)','neighbors_obj.run()')
              1    ('Data_Manager','delete_first_month')                                         ('Data_Manager','data_manager_obj = Data_Manager_obj(df)','data_manager_obj.delete_first_month = True','data_manager_obj.run()')
@@ -47,83 +46,31 @@ Output e.g. id    parsed_string                      functions_to_evaluate
              4    ('Data_Manager','split_into',2)                                               ('Data_Manager','data_manager_obj = Data_Manager_obj(df)','data_manager_obj.split_into = int(n_split)','data_manager_obj.run()')
              5    ('Filters','quick_filters','delete_loners')                                   ('Filters','filters_obj = Filters_obj(pf_locations or masked_pf_,locations)','filters_obj.quick_filters()','filters_obj.run()')
 """
+import datetime
+import subprocess
+from multiprocessing import cpu_count
+from os import remove
+from os.path import exists
 
-ACTIONS_DICT = dict(
-    Genie=dict(
-        init='genie_obj = self.Genie_obj()',
-        config_file_path='genie_obj.config_file_path = str(config_file_path)',
-        n_trials='genie_obj.n_trials = int(n_trials)',
-        refine=dict(
-            # init='genie_obj.refine = True',
-            init='genie_obj.refine()',
-            strategy_seeds='genie_obj.refine.strategy_seeds = strategy_seeds',
-            grid_n='genie_obj.refine.grid_n = int(grid_n)',
-            product='genie_obj.refine.product = True',
-            search_algorythm=dict()
-        ),
-        run_command='genie_obj.run()',
-    ),
-    MIP=dict(
-        init='mip_obj = self.MIP_obj()',
-        n_parameters='mip_obj.n_parameters = return_n_parameters',
-        agg='mip_obj.agg = previous_mip_values',
-        run_command='mip_obj.run()',
-    ),
-    Overfit=dict(
-        init='overfit_obj = self.Overfit_obj()',
-        cscv=dict(
-            init='overfit_obj.cscv()',
-            n_bins='overfit_obj.n_bins = int(n_bins)',
-            objective='overfit_obj.objective = objective',
-            PBO='overfit_obj.PBO = True',
-            PDes='overfit_obj.PDes = True',
-            SD='overfit_obj.SD = True',
-            POvPNO='overfit_obj.POvPNO = True',
-        ),
-        run_command='overfit_obj.run()'
-    ),
-    Neighbors=dict(
-        init='neighbors_obj = self.Neighbors_obj()',
-        n_neighbors='neighbors_obj.n_neighbors = n_neighbors',
-        computations_type='neighbors_obj.computations_type = computations_type',
-        run_command='neighbors_obj.run()',
-    ),
-    Filters=dict(
-        init='filters_obj = self.Filters_obj()',
-        quick_filters='filters_obj.quick_filters = True',
-        #
-        delete_drawdown='filters_obj.delete_drawdown = drawdown_cmd',
-        delete_profit='filters_obj.delete_profit = profit_cmd',
-        delete_expectency='filters_obj.delete_expectency = expectency_cmd',
-        delete_loners='filters_obj.delete_loners = True',
-        # ...
-        run_command='filters_obj.run()',
-    ),
-    Data_Manager=dict(
-        init='data_manager_obj = self.Data_Manager_obj()',
-        delete_first_month='data_manager_obj.delete_first_month = True',
-        delete_last_month='data_manager_obj.delete_last_month = True',
-        delete_max_drawdown_month='data_manager_obj.delete_max_drawdown_month = True',
-        # ...
-        n_split='data_manager_obj.n_split = int(n_split)',
-        run_command='data_manager_obj.run()',
-    ),
-)
-
-import ast
-import inspect
-
+import flatdict
+import numpy as np
 import pandas as pd
 
-import _typing as tp
+from genie_api_actions import ACTIONS_DICT
+from utils import multiline_eval
 
 Spaces_Program_Info = dict(
     Genie=dict(
-        main_path="/home/ruben/PycharmProjects/mini_Genie/mini_genie_source/main_mini_genie.py",
-        command_line_flags=dict(
-            gp=True,
-            c=False,
-        )
+        working_dir="/home/ruben/Programs/mini_Genie_test",
+        main_path="/home/ruben/Programs/mini_Genie_test/mini_genie_source/main_mini_genie.py",
+        config=dict(
+            template='from mini_genie_config_template import config_template\n config_template',
+            output_config='temp_input_config',
+            corresponding_input_flag='config_file_path',
+        ),
+        # command_line_flags=dict(
+        #     config_file_path=None,
+        # ),
     )
 )
 
@@ -134,7 +81,6 @@ Spaces_Program_Info = dict(
 #   3. Make the nessesary changes to the keys and values
 #   4. Make a temporary copy of the file
 #   5. Pass the temporary file's path to mini_Genie
-
 class ApiHandler:
     def __init__(self, input_dict, actions_dict=ACTIONS_DICT):
         self.Results = None
@@ -151,7 +97,6 @@ class ApiHandler:
         # Sanity check to make sure all keys in runtime are in known actions
         self.prep_input()
 
-        import flatdict
         self.runtime_settings = flatdict.FlatDict(self.input_dict, delimiter='.')
         self.actions_settings = flatdict.FlatDict(self.actions_dict, delimiter='.')
         #
@@ -162,27 +107,128 @@ class ApiHandler:
         self.previous_mip_values = None
         self.common = "dict(" \
                       "self=self," \
-                      "pf_params_and_metrics_df=self.pf_params_and_metrics_df," \
-                      "previous_mip_values=self.previous_mip_values" \
+                      "datetime=datetime," \
                       ")"
 
+        # self.common = """dict(
+        #     self=self
+        #     this_elsethis=multiline_eval(expr='from utils import this_elsethis\nthis_elsethis'),
+        #     datetime=multiline_eval(expr='import datetime\ndatetime'),
+        #     np=multiline_eval(expr='import numpy as np \nnp'),
+        #     numpy=multiline_eval(expr='import numpy  \nnumpy'),
+        # )"""
+
+        # "dict(" \
+        #           "self=self," \
+        #           ")"
+        #
+        #   # "pf_params_and_metrics_df=self.pf_params_and_metrics_df," \
+        #                       # "previous_mip_values=self.previous_mip_values" \
+        #
+        from utils import dotdict
+        self.dotdict = dotdict
+
     # """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
     @staticmethod
     class Genie_obj:
         def __init__(self):
             self.config_file_path = None
             self.n_trials = None
+            self.data_files_names = None
+            self.tick_size = None
+            self.study_name = None
+            self.start_date = None
+            self.end_date = None
+            self.timer_limit = None
+            self.Continue = None
+            self.batch_size = None
+            self.max_initial_combinations = None
+            self.stop_after_n_epoch = None
+            self.Strategy = None
+            self.max_spread_allowed = None
+            self.trading_fees = None
+            self.max_orders = None
+            self.init_cash = None
+            self.size = None
+            self.ray_init_num_cpus = None
+            self.simulate_signals_num_cpus = None
+            #
+            self.call_dict = Spaces_Program_Info["Genie"]
+
+            self.common = "dict(" \
+                          "self=self," \
+                          ")"
 
         def run(self):
+            # todo if any of the methods were called, if only one run type selected then use context to compile a call
+            #   other wise pop an error indicating only one type per run can be chosen
+
+            working_dir = self.call_dict["working_dir"]
+            main_path = self.call_dict["main_path"]
+            config = self.call_dict["config"]
+            # command_line_flags = self.call_dict["command_line_flags"]
+            #
+            template_settings_dict = multiline_eval(expr=config["template"])
+
+            context = {}
+            context.update(self.__dict__,
+                           this_elsethis=multiline_eval(expr='from utils import this_elsethis\nthis_elsethis'),
+                           datetime=datetime,
+                           np=np,
+                           cpu_count=cpu_count,
+                           )
+
+            temp_config_file_name = f'temp_run_time_settings.py'
+            temp_config_file_path = f'{working_dir}/{temp_config_file_name}'
+            run_time_settings = multiline_eval(expr=template_settings_dict, context=context)
+            #
+            import pprint
+            pprint.pprint(run_time_settings)
+
+
+            assert exists(working_dir)
+            with open(temp_config_file_path, 'w') as fout:
+                fout.write(str('from pandas import Timestamp\n'))
+                fout.write(str('import datetime\n'))
+                fout.write(str('import numpy as np\n'))
+                fout.write(str('from numpy import inf\n'))
+                fout.write(str(f'{run_time_settings = }'))
+
+
+
+            cmd_line_str = f'cd {working_dir} && pipenv run {main_path} -config_file_path {temp_config_file_name}.run_time_settings -gp'
+            # for flag, default_value in command_line_flags.items():
+            #     usr_value = getattr(self, flag)
+            #     usr_value = usr_value if usr_value else command_line_flags[flag]
+            #     cmd_line_str = f'{cmd_line_str} -{flag} {usr_value}'
+
+            print(cmd_line_str)
+
+            self.cmd_line_call = cmd_line_str
+            self.returned_output = subprocess.call(cmd_line_str, shell=True)
+            remove(temp_config_file_path)
+
             return self
 
-        @staticmethod
-        class refine:
-            def __init__(self):
-                self.strategy_seeds = None
-                self.grid_n = None
-                self.product = None
-                self.search_algorythm = None
+        # @staticmethod
+        # class refine_obj:
+        #     def __init__(hi):
+        #         hi.strategy_seeds = None
+        #         # self.strategy_seeds = None
+        #         # self.grid_n = None
+        #         # self.product = None
+        #         # self.search_algorythm = None
+        #         # print(self.__dict__)
+        #         # print(hi.__dict__)
+        #         # print("END")
+        #         # exit()
+        #         ...
+        #
+        #         return self.dotdict()
+
+        # def property(self):
+        #     ...
 
     @staticmethod
     class MIP_obj:
@@ -367,33 +413,16 @@ class ApiHandler:
                             if parsed_cmd not in command_pipe:
                                 command_pipe.append(parsed_cmd)
 
+                        # else:
+                        #     parsed_cmd = f'{Head_Space}.{runtime_key}'
+                        #     if parsed_cmd not in command_pipe:
+                        #         command_pipe.append(parsed_cmd)
+                        #     print(runtime_key)
+
     def parse(self):
         self.parse_input_dict()
         self.fill_output_df()
         return self.df
-
-    @staticmethod
-    def multiline_eval(expr: str, context: tp.KwargsLike = None) -> tp.Any:
-        """Evaluate several lines of input, returning the result of the last line.
-
-        Args:
-            expr: The expression to evaluate.
-            context: The context to evaluate the expression in.
-
-        Returns:
-            The result of the last line of the expression.
-
-        Raises:
-            SyntaxError: If the expression is not valid Python.
-            ValueError: If the expression is not valid Python.
-        """
-        if context is None:
-            context = {}
-        tree = ast.parse(inspect.cleandoc(expr))
-        eval_expr = ast.Expression(tree.body[-1].value)
-        exec_expr = ast.Module(tree.body[:-1], type_ignores=[])
-        exec(compile(exec_expr, "file", "exec"), context)
-        return eval(compile(eval_expr, "file", "eval"), context)
 
     @staticmethod
     def _return_expr_n_context(space_cmds, HS):
@@ -420,8 +449,11 @@ class ApiHandler:
                     else:
                         init_obj = split_cmd[0].strip()
                         assert init_obj.split('.')[0] == hs_init_obj
-                        print(f'!!ERROR {split_cmd[1] = }!!')
-                        exit()
+                        icontext = split_cmd[1]
+                        # x = cmd.split('.')[-1].split('=')[0].strip()
+                        x = init_obj.split('.')[-1]
+                        context[f'{x}'] = icontext
+                        print(f'!!Warning {split_cmd[1] = }!!')
             else:
                 assert contx != False
                 cmd_dot_split = cmd.split('.')
@@ -445,19 +477,17 @@ class ApiHandler:
         space_cmds = self.df[self.df["ID"] == space_id]
         expression, context = self._return_expr_n_context(space_cmds, HS)
         context.update(eval(self.common))
-        # print(context)
+        print(context)
         # print(expression)
         # print(f'{exec(compile(expression, "file", "exec"), context) = }')
         # print()
-        return self.multiline_eval(expr=expression, context=context)
+        return multiline_eval(expr=expression, context=context)
 
     def run(self):
         Results = dict()
         for space_id, HS in enumerate(self.head_spaces_names, start=1):
             Results[HS] = self._run_space(space_id, HS)
-
-            #
-            # exit()
+            exit()
         #
         self.Results = Results
         for i, j in self.Results.items():
@@ -467,43 +497,46 @@ class ApiHandler:
         return self.Results
 
 
-EXAMPLE_INPUT_DICT = dict(
-    Genie=dict(
-        n_trials=500,
-        config_file_path="mmt_debug.py.debug_settings",
-        refine=dict(
-            grid_n=5,
+if '__main__' == __name__:
+    EXAMPLE_INPUT_DICT = dict(
+        Genie=dict(
+            study_name='Test_Study',
+            Strategy='mini_genie_source/Strategies/Money_Maker_Strategy.py',
+            data_files_names=['AUDUSD'],
+            tick_size=[0.001],
+            size=100,
+            start_date=datetime.datetime(month=1, day=1, year=2022),
+            end_date=datetime.datetime(month=3, day=1, year=2022),
         ),
-    ),
-    MIP=dict(
-        agg=True,
-    ),
-    Neighbors=dict(
-        n_neighbors=20,
-    ),
-    Data_Manager=dict(
-        delete_first_month=True,
-    ),
-    Overfit=dict(
-        cscv=dict(
-            n_bins=10,
-            objective='sharpe_ratio',
-            PBO=True,
-            PDes=True,
-            SD=True,
-            POvPNO=True,
-        )
-    ),
-    Data_Manager_1=dict(  # todo add _{} parser
-        n_split=2,
-    ),
-    Filters=dict(
-        quick_filters=True,
-        delete_loners=True,
-    ),
-)
+        # MIP=dict(
+        #     agg=True,
+        # ),
+        # Neighbors=dict(
+        #     n_neighbors=20,
+        # ),
+        # Data_Manager=dict(
+        #     delete_first_month=True,
+        # ),
+        # Overfit=dict(
+        #     cscv=dict(
+        #         n_bins=10,
+        #         objective='sharpe_ratio',
+        #         PBO=True,
+        #         PDes=True,
+        #         SD=True,
+        #         POvPNO=True,
+        #     )
+        # ),
+        # Data_Manager_1=dict(  # todo add _{} parser
+        #     n_split=2,
+        # ),
+        # Filters=dict(
+        #     quick_filters=True,
+        #     delete_loners=True,
+        # ),
+    )
 
-api_handler = ApiHandler(EXAMPLE_INPUT_DICT)
-api_handler.parse()
-# print(api_handler.df[['Template_Code', 'Variable_Value']])
-api_handler.run()
+    api_handler = ApiHandler(EXAMPLE_INPUT_DICT)
+    api_handler.parse()
+    # print(api_handler.df[['Template_Code', 'Variable_Value']])
+    api_handler.run()
