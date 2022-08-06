@@ -57,7 +57,7 @@ import numpy as np
 import pandas as pd
 
 from genie_api_actions import ACTIONS_DICT
-from utils import multiline_eval
+from utils import multiline_eval, return_unique_name_for_path
 
 Spaces_Program_Info = dict(
     Genie=dict(
@@ -66,21 +66,22 @@ Spaces_Program_Info = dict(
         config=dict(
             template='from mini_genie_config_template import config_template\n config_template',
             output_config='temp_input_config',
-            corresponding_input_flag='config_file_path',
+            corresponding_input_flag='--config_file_path',
+            command_line_flag=[]
         ),
-        # command_line_flags=dict(
-        #     config_file_path=None,
-        # ),
+    ),
+    Filters=dict(
+        working_dir="/home/ruben/PycharmProjects/Post_Processing_Genie",
+        main_path="/home/ruben/PycharmProjects/Post_Processing_Genie/post_processing_genie_source/post_processing_genie_main.py",
+        config=dict(
+            template='from filters_config_template import config_template\n config_template',
+            corresponding_input_flag='--actions',
+            command_line_flag=['-f']
+        ),
     )
 )
 
 
-# todo
-#   1. I can load the configuration file
-#   2. Parse Dictionary
-#   3. Make the nessesary changes to the keys and values
-#   4. Make a temporary copy of the file
-#   5. Pass the temporary file's path to mini_Genie
 class ApiHandler:
     def __init__(self, input_dict, actions_dict=ACTIONS_DICT):
         self.Results = None
@@ -133,7 +134,6 @@ class ApiHandler:
     @staticmethod
     class Genie_obj:
         def __init__(self):
-            self.config_file_path = None
             self.n_trials = None
             self.data_files_names = None
             self.tick_size = None
@@ -164,6 +164,14 @@ class ApiHandler:
             # todo if any of the methods were called, if only one run type selected then use context to compile a call
             #   other wise pop an error indicating only one type per run can be chosen
 
+            if "_Study_Name" in Spaces_Program_Info:
+                if self.study_name:
+                    assert Spaces_Program_Info["_Study_Name"] == self.study_name
+                else:
+                    self.study_name = Spaces_Program_Info["_Study_Name"]
+            else:
+                Spaces_Program_Info["_Study_Name"] = self.study_name
+
             working_dir = self.call_dict["working_dir"]
             main_path = self.call_dict["main_path"]
             config = self.call_dict["config"]
@@ -183,10 +191,9 @@ class ApiHandler:
             temp_config_file_path = f'{working_dir}/{temp_config_file_name}'
             run_time_settings = multiline_eval(expr=template_settings_dict, context=context)
             #
-            import pprint
-            pprint.pprint(run_time_settings)
-
-
+            # import pprint
+            # pprint.pprint(run_time_settings)
+            #
             assert exists(working_dir)
             with open(temp_config_file_path, 'w') as fout:
                 fout.write(str('from pandas import Timestamp\n'))
@@ -195,9 +202,11 @@ class ApiHandler:
                 fout.write(str('from numpy import inf\n'))
                 fout.write(str(f'{run_time_settings = }'))
 
+            flags = ''
+            for i in config["command_line_flag"]:
+                flags = f'{flags} {i}'
 
-
-            cmd_line_str = f'cd {working_dir} && pipenv run {main_path} -config_file_path {temp_config_file_name}.run_time_settings -gp'
+            cmd_line_str = f'cd {working_dir} && pipenv run {main_path} {flags} {config["corresponding_input_flag"]} {temp_config_file_name}.run_time_settings -gp'
             # for flag, default_value in command_line_flags.items():
             #     usr_value = getattr(self, flag)
             #     usr_value = usr_value if usr_value else command_line_flags[flag]
@@ -210,25 +219,6 @@ class ApiHandler:
             remove(temp_config_file_path)
 
             return self
-
-        # @staticmethod
-        # class refine_obj:
-        #     def __init__(hi):
-        #         hi.strategy_seeds = None
-        #         # self.strategy_seeds = None
-        #         # self.grid_n = None
-        #         # self.product = None
-        #         # self.search_algorythm = None
-        #         # print(self.__dict__)
-        #         # print(hi.__dict__)
-        #         # print("END")
-        #         # exit()
-        #         ...
-        #
-        #         return self.dotdict()
-
-        # def property(self):
-        #     ...
 
     @staticmethod
     class MIP_obj:
@@ -282,8 +272,8 @@ class ApiHandler:
             ...
 
         def cscv(self):
-            self.n_bins = 10,
-            self.objective = 'sortino',
+            self.n_bins = None,
+            self.objective = None,
             self.PBO = None,
             self.PDes = None,
             self.SD = None,
@@ -295,15 +285,71 @@ class ApiHandler:
     @staticmethod
     class Filters_obj:
         def __init__(self):
+            self.study_name = None
+            self.output_path = None
+            self.quick_filters = None
+            self.Min_total_trades = None
+            self.Profit_factor = None
+            self.Expectancy = None
+            self.Daily_drawdown = None
+            self.Total_drawdown = None
+            self.Profit_for_month = None
+            self.Total_Win_Rate = None
             self.quick_filters = None
             #
-            self.delete_drawdown = None
-            self.delete_profit = None
-            self.delete_expectency = None
-            self.delete_loners = None
+            # self.delete_drawdown = None
+            # self.delete_profit = None
+            # self.delete_expectency = None
+            # self.delete_loners = None
             # ...
+            #
+            self.call_dict = Spaces_Program_Info["Filters"]
+
+            self.common = "dict(" \
+                          "self=self," \
+                          ")"
 
         def run(self):
+            # Do
+            if "_Study_Name" in Spaces_Program_Info:
+                if self.study_name:
+                    assert Spaces_Program_Info["_Study_Name"] == self.study_name
+                else:
+                    self.study_name = Spaces_Program_Info["_Study_Name"]
+            else:
+                Spaces_Program_Info["_Study_Name"] = self.study_name
+            # Finally Do
+            self.study_path = f'{Spaces_Program_Info["Genie"]["working_dir"]}/Studies/{self.study_name}'
+            assert exists(self.study_path)
+
+            self.default_output_path = f'{Spaces_Program_Info["Genie"]["working_dir"]}/Studies/portfolio_stats.csv'
+
+            working_dir = self.call_dict["working_dir"]
+            assert exists(working_dir)
+            main_path = self.call_dict["main_path"]
+            config = self.call_dict["config"]
+            #
+            template_settings_dict = multiline_eval(expr=config["template"])
+            #
+            context = {}
+            context.update(self.__dict__,
+                           study_path=self.study_path,
+                           this_elsethis=multiline_eval(expr='from utils import this_elsethis\nthis_elsethis'),
+                           return_unique_name_for_path=return_unique_name_for_path,
+                           # datetime=datetime,
+                           np=np,
+                           # cpu_count=cpu_count,
+                           )
+            #
+            run_time_settings = multiline_eval(expr=template_settings_dict, context=context)
+            #
+            flags = ''
+            for i in config["command_line_flag"]:
+                flags = f'{flags} {i}'
+            #
+            cmd_line_str = f'cd {working_dir} && pipenv run {main_path} {flags} {config["corresponding_input_flag"]} \"{run_time_settings}\"'
+            self.cmd_line_call = cmd_line_str
+            self.returned_output = subprocess.call(self.cmd_line_call, shell=True)
             return self
 
     # """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -326,7 +372,8 @@ class ApiHandler:
         for input_key in self.runtime_settings.keys():
             if input_key not in self.actions_settings.keys():
                 not_recognized_keys.append(input_key)
-        if not_recognized_keys:  print(f"{not_recognized_keys} keys is not recognized")
+        if not_recognized_keys:  multiline_eval('print(f"{not_recognized_keys} keys is not recognized") \n exit()',
+                                                context=dict(not_recognized_keys=not_recognized_keys))
 
     @staticmethod
     def fetch_keys_that_start_with_optimized(dictionary, start_str):
@@ -439,6 +486,7 @@ class ApiHandler:
                     x = cmd.split('.')[-1].split('=')[0].strip()
                     context[f'{x}'] = contx
                 else:
+                    # print(f'{api_call_dot_split[-1].strip() = }')
                     assert api_call_dot_split[-1].strip() == 'init'
                     split_cmd = cmd.split('=')
                     assert len(split_cmd) == 2
@@ -477,23 +525,16 @@ class ApiHandler:
         space_cmds = self.df[self.df["ID"] == space_id]
         expression, context = self._return_expr_n_context(space_cmds, HS)
         context.update(eval(self.common))
-        print(context)
-        # print(expression)
-        # print(f'{exec(compile(expression, "file", "exec"), context) = }')
-        # print()
         return multiline_eval(expr=expression, context=context)
 
     def run(self):
         Results = dict()
         for space_id, HS in enumerate(self.head_spaces_names, start=1):
             Results[HS] = self._run_space(space_id, HS)
-            exit()
         #
         self.Results = Results
         for i, j in self.Results.items():
             print(f'{j.__dict__}')
-        # print(f'{self.Results = }')
-
         return self.Results
 
 
@@ -504,9 +545,30 @@ if '__main__' == __name__:
             Strategy='mini_genie_source/Strategies/Money_Maker_Strategy.py',
             data_files_names=['AUDUSD'],
             tick_size=[0.001],
-            size=100,
+            init_cash=1_000_000,
+            size=100_000,
             start_date=datetime.datetime(month=1, day=1, year=2022),
             end_date=datetime.datetime(month=3, day=1, year=2022),
+            #
+            # Continue=False,
+            batch_size=10,
+            timer_limit=None,
+            stop_after_n_epoch=5,
+            max_initial_combinations=2,
+            trading_fees=0.00005,  # 0.00005 or 0.005%, $5 per $100_000
+            max_orders=10,
+        ),
+        Filters=dict(
+            study_name='Test_Study',
+            Min_total_trades=1,
+            Profit_factor=1.0,
+            Expectancy=0.01,
+            Daily_drawdown=0.05,
+            Total_drawdown=0.1,
+            Profit_for_month=0.1,
+            Total_Win_Rate=0.03,
+            quick_filters=True,
+            # delete_loners=True,
         ),
         # MIP=dict(
         #     agg=True,
