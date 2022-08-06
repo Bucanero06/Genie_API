@@ -1,6 +1,7 @@
 import ast
 import inspect
 from os.path import exists
+from subprocess import Popen, PIPE, CalledProcessError
 
 import _typing as tp
 
@@ -106,3 +107,14 @@ def return_unique_name_for_path(path_given):
         split_path = output_path.rsplit('.', 1)
         output_path = next_path(f'{split_path[0]}_%s.{split_path[1]}')
     return output_path
+
+
+
+def Execute(command):
+    #>Executes to command line
+    with Popen(command, stdout=PIPE, bufsize=1, universal_newlines=True, shell=True) as p:
+        for line in p.stdout:
+            print(line, end='')  # process line here
+    if p.returncode != 0:
+        # raise CalledProcessError(p.returncode, p.args)
+        exit()

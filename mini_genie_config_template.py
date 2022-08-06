@@ -28,7 +28,7 @@ config_template = """dict(
         ),
         #
         timer_limit=this_elsethis(timer_limit,datetime.timedelta(days=365, hours=0, minutes=0, seconds=0)) ,  
-        Continue=False,
+        Continue=this_elsethis(Continue,False),
         run_mode="plaid_plus",  # todo: ["ludicrous","plaid_plus"]
         #
         batch_size=this_elsethis(batch_size,int(10)),

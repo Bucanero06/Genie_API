@@ -57,7 +57,7 @@ import numpy as np
 import pandas as pd
 
 from genie_api_actions import ACTIONS_DICT
-from utils import multiline_eval, return_unique_name_for_path
+from utils import multiline_eval, return_unique_name_for_path, Execute
 
 Spaces_Program_Info = dict(
     Genie=dict(
@@ -207,15 +207,10 @@ class ApiHandler:
                 flags = f'{flags} {i}'
 
             cmd_line_str = f'cd {working_dir} && pipenv run {main_path} {flags} {config["corresponding_input_flag"]} {temp_config_file_name}.run_time_settings -gp'
-            # for flag, default_value in command_line_flags.items():
-            #     usr_value = getattr(self, flag)
-            #     usr_value = usr_value if usr_value else command_line_flags[flag]
-            #     cmd_line_str = f'{cmd_line_str} -{flag} {usr_value}'
-
-            print(cmd_line_str)
 
             self.cmd_line_call = cmd_line_str
-            self.returned_output = subprocess.call(cmd_line_str, shell=True)
+            # self.returned_output = subprocess.call(cmd_line_str, shell=True)
+            self.returned_output = Execute(self.cmd_line_call)
             remove(temp_config_file_path)
 
             return self
@@ -349,7 +344,13 @@ class ApiHandler:
             #
             cmd_line_str = f'cd {working_dir} && pipenv run {main_path} {flags} {config["corresponding_input_flag"]} \"{run_time_settings}\"'
             self.cmd_line_call = cmd_line_str
-            self.returned_output = subprocess.call(self.cmd_line_call, shell=True)
+            # self.returned_output = subprocess.call(self.cmd_line_call, shell=True)
+            self.returned_output = Execute(self.cmd_line_call)
+
+
+
+
+
             return self
 
     # """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -482,11 +483,10 @@ class ApiHandler:
             assert HS == api_call_dot_split[0]
 
             if "=" in cmd:
-                if contx:
+                if contx != None:
                     x = cmd.split('.')[-1].split('=')[0].strip()
                     context[f'{x}'] = contx
                 else:
-                    # print(f'{api_call_dot_split[-1].strip() = }')
                     assert api_call_dot_split[-1].strip() == 'init'
                     split_cmd = cmd.split('=')
                     assert len(split_cmd) == 2
@@ -550,10 +550,10 @@ if '__main__' == __name__:
             start_date=datetime.datetime(month=1, day=1, year=2022),
             end_date=datetime.datetime(month=3, day=1, year=2022),
             #
-            # Continue=False,
-            batch_size=10,
+            Continue=True,
+            batch_size=2,
             timer_limit=None,
-            stop_after_n_epoch=5,
+            stop_after_n_epoch=1,
             max_initial_combinations=2,
             trading_fees=0.00005,  # 0.00005 or 0.005%, $5 per $100_000
             max_orders=10,
@@ -602,3 +602,4 @@ if '__main__' == __name__:
     api_handler.parse()
     # print(api_handler.df[['Template_Code', 'Variable_Value']])
     api_handler.run()
+

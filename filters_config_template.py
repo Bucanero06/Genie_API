@@ -11,4 +11,3 @@ config_template = """dict(
     #
     quick_filters = this_elsethis(quick_filters,False),
 )"""
-# self.study_path
