@@ -47,7 +47,6 @@ Output e.g. id    parsed_string                      functions_to_evaluate
              5    ('Filters','quick_filters','delete_loners')                                   ('Filters','filters_obj = Filters_obj(pf_locations or masked_pf_,locations)','filters_obj.quick_filters()','filters_obj.run()')
 """
 import datetime
-import subprocess
 from multiprocessing import cpu_count
 from os import remove
 from os.path import exists
@@ -59,10 +58,14 @@ import pandas as pd
 from genie_api_actions import ACTIONS_DICT
 from utils import multiline_eval, return_unique_name_for_path, Execute
 
+# working_dir="/home/ruben/Programs/deletedir/mini_Genie",
+# main_path="/home/ruben/Programs/deletedir/mini_Genie/mini_genie_source/main_mini_genie.py",
+
+
 Spaces_Program_Info = dict(
     Genie=dict(
-        working_dir="/home/ruben/Programs/mini_Genie_test",
-        main_path="/home/ruben/Programs/mini_Genie_test/mini_genie_source/main_mini_genie.py",
+        working_dir="/home/ruben/PycharmProjects/mini_Genie",
+        main_path="/home/ruben/PycharmProjects/mini_Genie/mini_genie_source/main_mini_genie.py",
         config=dict(
             template='from mini_genie_config_template import config_template\n config_template',
             output_config='temp_input_config',
@@ -347,10 +350,6 @@ class ApiHandler:
             # self.returned_output = subprocess.call(self.cmd_line_call, shell=True)
             self.returned_output = Execute(self.cmd_line_call)
 
-
-
-
-
             return self
 
     # """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -538,25 +537,31 @@ class ApiHandler:
         return self.Results
 
 
+"""
+python function to compute dask cartesian product of multiple very memory demanding arrays,the main goals is memory conservation and of course performance and speed are important for any function working with such large numbers, use any libraries and tricks and algorythms as long as the result is correct
+"""
+
 if '__main__' == __name__:
     EXAMPLE_INPUT_DICT = dict(
         Genie=dict(
             study_name='Test_Study',
-            Strategy='mini_genie_source/Strategies/Money_Maker_Strategy.py',
-            data_files_names=['AUDUSD'],
+            Strategy='mini_genie_source/Strategies/RLGL_Strategy.py',
+            data_files_names=['XAUUSD'],
             tick_size=[0.001],
             init_cash=1_000_000,
             size=100_000,
-            start_date=datetime.datetime(month=1, day=1, year=2022),
-            end_date=datetime.datetime(month=3, day=1, year=2022),
+            start_date=datetime.datetime(month=3, day=4, year=2022),
+            end_date=datetime.datetime(month=7, day=7, year=2022),
             #
-            Continue=True,
-            batch_size=2,
+            Continue=False,
+            batch_size=5000,
             timer_limit=None,
-            stop_after_n_epoch=1,
-            max_initial_combinations=2,
+            stop_after_n_epoch=200,
+            max_initial_combinations=800_000_000,
+            # max_initial_combinations=1000,
             trading_fees=0.00005,  # 0.00005 or 0.005%, $5 per $100_000
             max_orders=10,
+
         ),
         Filters=dict(
             study_name='Test_Study',
@@ -602,4 +607,3 @@ if '__main__' == __name__:
     api_handler.parse()
     # print(api_handler.df[['Template_Code', 'Variable_Value']])
     api_handler.run()
-
