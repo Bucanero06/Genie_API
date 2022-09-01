@@ -64,8 +64,8 @@ from utils import multiline_eval, return_unique_name_for_path, Execute
 
 Spaces_Program_Info = dict(
     Genie=dict(
-        working_dir="/home/ruben/PycharmProjects/mini_Genie",
-        main_path="/home/ruben/PycharmProjects/mini_Genie/mini_genie_source/main_mini_genie.py",
+        working_dir="..",
+        main_path="../mini_Genie/mini_genie_source/main_mini_genie.py",
         config=dict(
             template='from mini_genie_config_template import config_template\n config_template',
             output_config='temp_input_config',
@@ -209,18 +209,28 @@ class ApiHandler:
             for i in config["command_line_flag"]:
                 flags = f'{flags} {i}'
 
-            cmd_line_str = f'cd {working_dir} && pipenv run {main_path} {flags} {config["corresponding_input_flag"]} {temp_config_file_name}.run_time_settings -gp'
-
-            self.cmd_line_call = cmd_line_str
+            # Change to the working directory
+            import os
+            current_dir = os.getcwd()
+            os.chdir(working_dir)
+            from mini_Genie.mini_genie_source.main_mini_genie import call_genie
+            from mini_Genie.mini_genie_source.Run_Time_Handler.run_time_handler import run_time_handler
+            run_time_handler = run_time_handler(run_function=call_genie,
+                                                GP_DEFAULT=True,
+                                                UP_DEFAULT=False,
+                                                POST_ANALYSIS_DEFAULT=False,
+                                                TSV_DEFAULT=False,
+                                                CONFIG_FILE_DEFAULT=f"{temp_config_file_name}.run_time_settings"
+                                                )
 
             for i in range(35):  # FIXME HOTFIX!!
                 print(f"GENIE_RUN: {i + 1}")
-                Execute(self.cmd_line_call)
-
-            # self.returned_output = subprocess.call(cmd_line_str, shell=True)
-            self.returned_output = Execute(self.cmd_line_call)
+                run_time_handler.call_run_function()
+                # Execute(self.cmd_line_call)
+                # Execute(self.cmd_line_call)
+            run_time_handler.call_run_function()
+            os.chdir(current_dir)
             remove(temp_config_file_path)
-
             return self
 
     @staticmethod
@@ -377,8 +387,9 @@ class ApiHandler:
         for input_key in self.runtime_settings.keys():
             if input_key not in self.actions_settings.keys():
                 not_recognized_keys.append(input_key)
-        if not_recognized_keys:  multiline_eval('print(f"{not_recognized_keys} keys is not recognized") \n exit()',
-                                                context=dict(not_recognized_keys=not_recognized_keys))
+        if not_recognized_keys:  multiline_eval(
+            'logger.error(f"{not_recognized_keys} keys is not recognized") \n exit()',
+            context=dict(not_recognized_keys=not_recognized_keys))
 
     @staticmethod
     def fetch_keys_that_start_with_optimized(dictionary, start_str):
@@ -414,7 +425,7 @@ class ApiHandler:
         # Fill Dataframe with assignments for each command
         index_ = 0
         for i, j in self.Master_Command_List.items():
-            print(f'____{i}____')
+            logger.info(f'____{i}____')
             self.id += 1
 
             for parsed_cmd in j:
@@ -425,11 +436,11 @@ class ApiHandler:
                     index_ += 1
                     self.df.loc[index_] = [self.id, parsed_cmd, template_code, variable_value]
                     # self.df.loc[self.id] = [self.id, parsed_cmd, template_code, variable_value]
-                    print('{} {} = variable_value --> "{}"'.format(self.id, parsed_cmd, template_code))
+                    logger.info('{} {} = variable_value --> "{}"'.format(self.id, parsed_cmd, template_code))
                 else:
                     print(parsed_cmd)
 
-            print(f'___________\n')
+            logger.info(f'___________\n')
 
     def parse_input_dict(self):
         self.Master_Command_List = {}
@@ -505,7 +516,7 @@ class ApiHandler:
                         # x = cmd.split('.')[-1].split('=')[0].strip()
                         x = init_obj.split('.')[-1]
                         context[f'{x}'] = icontext
-                        print(f'!!Warning {split_cmd[1] = }!!')
+                        logger.warning(f'!!Warning {split_cmd[1] = }!!')
             else:
                 assert contx != False
                 cmd_dot_split = cmd.split('.')
@@ -538,7 +549,7 @@ class ApiHandler:
         #
         self.Results = Results
         for i, j in self.Results.items():
-            print(f'{j.__dict__}')
+            logger.info(f'{j.__dict__}')
         return self.Results
 
 
@@ -547,6 +558,10 @@ python function to compute dask cartesian product of multiple very memory demand
 """
 
 if '__main__' == __name__:
+    from logger_tt import setup_logging, logger
+
+    setup_logging(full_context=1)
+
     EXAMPLE_INPUT_DICT = dict(
         Genie=dict(
             study_name='RLGL_XAUUSD',
@@ -559,29 +574,29 @@ if '__main__' == __name__:
             start_date=datetime.datetime(month=3, day=4, year=2022),
             end_date=datetime.datetime(month=7, day=7, year=2022),
             #
-            Continue=True,
-            batch_size=3000,
+            Continue=False,
+            batch_size=2,
             timer_limit=None,
             stop_after_n_epoch=5,
-            max_initial_combinations=1_000_000_000,
-            # max_initial_combinations=100_000_000,
+            # max_initial_combinations=1_000_000_000,
+            max_initial_combinations=1000,
             trading_fees=0.00005,  # 0.00005 or 0.005%, $5 per $100_000
             max_orders=1000,
         ),
-        Filters=dict(
-            study_name='RLGL_AUDUSD',
-            # study_name='Test_Study',
-            # study_name='Study_OILUSD',
-            Min_total_trades=1,
-            Profit_factor=1.0,
-            Expectancy=0.01,
-            Daily_drawdown=0.05,
-            Total_drawdown=0.1,
-            Profit_for_month=0.1,
-            Total_Win_Rate=0.03,
-            quick_filters=True,
-            # delete_loners=True,
-        ),
+        # Filters=dict(
+        #     study_name='RLGL_AUDUSD',
+        #     # study_name='Test_Study',
+        #     # study_name='Study_OILUSD',
+        #     Min_total_trades=1,
+        #     Profit_factor=1.0,
+        #     Expectancy=0.01,
+        #     Daily_drawdown=0.05,
+        #     Total_drawdown=0.1,
+        #     Profit_for_month=0.1,
+        #     Total_Win_Rate=0.03,
+        #     quick_filters=True,
+        #     # delete_loners=True,
+        # ),
         # MIP=dict(
         #     agg=True,
         # ),
