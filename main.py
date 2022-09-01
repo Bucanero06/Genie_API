@@ -212,6 +212,11 @@ class ApiHandler:
             cmd_line_str = f'cd {working_dir} && pipenv run {main_path} {flags} {config["corresponding_input_flag"]} {temp_config_file_name}.run_time_settings -gp'
 
             self.cmd_line_call = cmd_line_str
+
+            for i in range(35):  # FIXME HOTFIX!!
+                print(f"GENIE_RUN: {i + 1}")
+                Execute(self.cmd_line_call)
+
             # self.returned_output = subprocess.call(cmd_line_str, shell=True)
             self.returned_output = Execute(self.cmd_line_call)
             remove(temp_config_file_path)
@@ -544,27 +549,29 @@ python function to compute dask cartesian product of multiple very memory demand
 if '__main__' == __name__:
     EXAMPLE_INPUT_DICT = dict(
         Genie=dict(
-            study_name='Test_Study',
+            study_name='RLGL_XAUUSD',
             Strategy='mini_genie_source/Strategies/RLGL_Strategy.py',
             data_files_names=['XAUUSD'],
+            # data_files_names=['OILUSD'],
             tick_size=[0.001],
             init_cash=1_000_000,
             size=100_000,
             start_date=datetime.datetime(month=3, day=4, year=2022),
             end_date=datetime.datetime(month=7, day=7, year=2022),
             #
-            Continue=False,
-            batch_size=5000,
+            Continue=True,
+            batch_size=3000,
             timer_limit=None,
-            stop_after_n_epoch=200,
-            max_initial_combinations=800_000_000,
-            # max_initial_combinations=1000,
+            stop_after_n_epoch=5,
+            max_initial_combinations=1_000_000_000,
+            # max_initial_combinations=100_000_000,
             trading_fees=0.00005,  # 0.00005 or 0.005%, $5 per $100_000
-            max_orders=10,
-
+            max_orders=1000,
         ),
         Filters=dict(
-            study_name='Test_Study',
+            study_name='RLGL_AUDUSD',
+            # study_name='Test_Study',
+            # study_name='Study_OILUSD',
             Min_total_trades=1,
             Profit_factor=1.0,
             Expectancy=0.01,

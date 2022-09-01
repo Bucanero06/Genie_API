@@ -44,8 +44,8 @@ config_template = """dict(
                 windows='grid',  # todo: needs to add settings for how to reduce, these dont do anything
                 tp_sl=dict(
                     bar_atr_days=datetime.timedelta(days=90, hours=0, minutes=0, seconds=0),
-                    bar_atr_periods=[7],  # todo multiple inputs
-                    bar_atr_multiplier=[3],  # todo multiple inputs
+                    bar_atr_periods=[14],  # todo multiple inputs
+                    bar_atr_multiplier=[2],  # todo multiple inputs
                     #
                     n_ratios=[0.5, 1, 1.5],  # Scaling factor for \bar{ATR}
                     gamma_ratios=[1, 1.5],  # Risk Reward Ratio
