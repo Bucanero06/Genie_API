@@ -63,27 +63,28 @@ from utils import multiline_eval, return_unique_name_for_path, Execute
 
 
 Spaces_Program_Info = dict(
+    working_dir="..",
     Genie=dict(
-        working_dir="..",
-        main_path="../mini_Genie/mini_genie_source/main_mini_genie.py",
-        config=dict(
-            template='from mini_genie_config_template import config_template\n config_template',
-            output_config='temp_input_config',
-            corresponding_input_flag='--config_file_path',
-            command_line_flag=[]
-        ),
+        template='from mini_genie_config_template import config_template\n config_template',
     ),
     Filters=dict(
-        working_dir="/home/ruben/PycharmProjects/Post_Processing_Genie",
-        main_path="/home/ruben/PycharmProjects/Post_Processing_Genie/post_processing_genie_source/post_processing_genie_main.py",
-        config=dict(
-            template='from filters_config_template import config_template\n config_template',
-            corresponding_input_flag='--actions',
-            command_line_flag=['-f']
-        ),
+        template='from filters_config_template import config_template\n config_template',
+    ),
+    Data_Manager=dict(
+        template='from data_manager_config_template import config_template\n config_template',
     )
+
 )
 
+
+def _check_study_name(Spaces_Program_Info,study_name):
+    if "_Study_Name" in Spaces_Program_Info:
+        if study_name:
+            assert Spaces_Program_Info["_Study_Name"] == study_name
+        else:
+            study_name = Spaces_Program_Info["_Study_Name"]
+    else:
+        Spaces_Program_Info["_Study_Name"] = study_name
 
 class ApiHandler:
     def __init__(self, input_dict, actions_dict=ACTIONS_DICT):
@@ -134,6 +135,7 @@ class ApiHandler:
 
     # """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
+
     @staticmethod
     class Genie_obj:
         def __init__(self):
@@ -154,6 +156,7 @@ class ApiHandler:
             self.max_orders = None
             self.init_cash = None
             self.size = None
+            self.run_mode = None
             self.ray_init_num_cpus = None
             self.simulate_signals_num_cpus = None
             #
@@ -167,20 +170,13 @@ class ApiHandler:
             # todo if any of the methods were called, if only one run type selected then use context to compile a call
             #   other wise pop an error indicating only one type per run can be chosen
 
-            if "_Study_Name" in Spaces_Program_Info:
-                if self.study_name:
-                    assert Spaces_Program_Info["_Study_Name"] == self.study_name
-                else:
-                    self.study_name = Spaces_Program_Info["_Study_Name"]
-            else:
-                Spaces_Program_Info["_Study_Name"] = self.study_name
+            _check_study_name(Spaces_Program_Info, self.study_name)
 
-            working_dir = self.call_dict["working_dir"]
-            main_path = self.call_dict["main_path"]
-            config = self.call_dict["config"]
+            working_dir = Spaces_Program_Info["working_dir"]
+            template = self.call_dict["template"]
             # command_line_flags = self.call_dict["command_line_flags"]
             #
-            template_settings_dict = multiline_eval(expr=config["template"])
+            template_settings_dict = multiline_eval(expr=template)
 
             context = {}
             context.update(self.__dict__,
@@ -193,6 +189,7 @@ class ApiHandler:
             temp_config_file_name = f'temp_run_time_settings.py'
             temp_config_file_path = f'{working_dir}/{temp_config_file_name}'
             run_time_settings = multiline_eval(expr=template_settings_dict, context=context)
+
             #
             # import pprint
             # pprint.pprint(run_time_settings)
@@ -205,10 +202,6 @@ class ApiHandler:
                 fout.write(str('from numpy import inf\n'))
                 fout.write(str(f'{run_time_settings = }'))
 
-            flags = ''
-            for i in config["command_line_flag"]:
-                flags = f'{flags} {i}'
-
             # Change to the working directory
             import os
             current_dir = os.getcwd()
@@ -218,8 +211,7 @@ class ApiHandler:
             run_time_handler = run_time_handler(run_function=call_genie,
                                                 GP_DEFAULT=True,
                                                 UP_DEFAULT=False,
-                                                POST_ANALYSIS_DEFAULT=False,
-                                                TSV_DEFAULT=False,
+                                                # POST_ANALYSIS_DEFAULT=False,
                                                 CONFIG_FILE_DEFAULT=f"{temp_config_file_name}.run_time_settings"
                                                 )
 
@@ -229,6 +221,66 @@ class ApiHandler:
                 # Execute(self.cmd_line_call)
                 # Execute(self.cmd_line_call)
             run_time_handler.call_run_function()
+            os.chdir(current_dir)
+            remove(temp_config_file_path)
+            return self
+
+    @staticmethod
+    class Data_Manager_obj:
+        def __init__(self):
+            self.study_name = None
+            #
+            self.delete_first_month = None
+            self.delete_last_month = None
+            self.delete_max_drawdown_month = None
+            # ...
+            self.n_split = None
+
+        def run(self):
+            # todo if any of the methods were called, if only one run type selected then use context to compile a call
+            #   other wise pop an error indicating only one type per run can be chosen
+
+            _check_study_name(Spaces_Program_Info,self.study_name)
+
+            working_dir = self.call_dict["working_dir"]
+            template = self.call_dict["template"]
+            # command_line_flags = self.call_dict["command_line_flags"]
+            #
+            template_settings_dict = multiline_eval(expr=template)
+
+            context = {}
+            context.update(self.__dict__,
+                           this_elsethis=multiline_eval(expr='from utils import this_elsethis\nthis_elsethis'),
+                           datetime=datetime,
+                           np=np,
+                           cpu_count=cpu_count,
+                           )
+
+            temp_config_file_name = f'temp_run_time_settings.py'
+            temp_config_file_path = f'{working_dir}/{temp_config_file_name}'
+            run_time_settings = multiline_eval(expr=template_settings_dict, context=context)
+
+            #
+            # import pprint
+            # pprint.pprint(run_time_settings)
+            #
+            assert exists(working_dir)
+            with open(temp_config_file_path, 'w') as fout:
+                fout.write(str('from pandas import Timestamp\n'))
+                fout.write(str('import datetime\n'))
+                fout.write(str('import numpy as np\n'))
+                fout.write(str('from numpy import inf\n'))
+                fout.write(str(f'{run_time_settings = }'))
+
+            # Change to the working directory
+            import os
+            current_dir = os.getcwd()
+            os.chdir(working_dir)
+            ##############################################################################################
+            # Code to run the program
+
+            ##############################################################################################
+
             os.chdir(current_dir)
             remove(temp_config_file_path)
             return self
@@ -252,18 +304,6 @@ class ApiHandler:
             return self
 
     @staticmethod
-    class Data_Manager_obj:
-        def __init__(self):
-            self.delete_first_month = None
-            self.delete_last_month = None
-            self.delete_max_drawdown_month = None
-            # ...
-            self.n_split = None
-
-        def run(self):
-            return self
-
-    @staticmethod
     class Overfit_obj:
         def __init__(self):
             ...
@@ -271,22 +311,6 @@ class ApiHandler:
         def cscv(self):
             self.n_bins = 10,
             self.objective = 'sortino',
-            self.PBO = None,
-            self.PDes = None,
-            self.SD = None,
-            self.POvPNO = None,
-
-        def run(self):
-            return self
-
-    @staticmethod
-    class Overfit_obj:
-        def __init__(self):
-            ...
-
-        def cscv(self):
-            self.n_bins = None,
-            self.objective = None,
             self.PBO = None,
             self.PDes = None,
             self.SD = None,
@@ -324,25 +348,19 @@ class ApiHandler:
 
         def run(self):
             # Do
-            if "_Study_Name" in Spaces_Program_Info:
-                if self.study_name:
-                    assert Spaces_Program_Info["_Study_Name"] == self.study_name
-                else:
-                    self.study_name = Spaces_Program_Info["_Study_Name"]
-            else:
-                Spaces_Program_Info["_Study_Name"] = self.study_name
+            _check_study_name(Spaces_Program_Info,self.study_name)
             # Finally Do
             self.study_path = f'{Spaces_Program_Info["Genie"]["working_dir"]}/Studies/{self.study_name}'
             assert exists(self.study_path)
 
             self.default_output_path = f'{Spaces_Program_Info["Genie"]["working_dir"]}/Studies/portfolio_stats.csv'
 
-            working_dir = self.call_dict["working_dir"]
+            working_dir = Spaces_Program_Info["working_dir"]
             assert exists(working_dir)
             main_path = self.call_dict["main_path"]
-            config = self.call_dict["config"]
+            template = self.call_dict["template"]
             #
-            template_settings_dict = multiline_eval(expr=config["template"])
+            template_settings_dict = multiline_eval(expr=template)
             #
             context = {}
             context.update(self.__dict__,
@@ -355,10 +373,6 @@ class ApiHandler:
                            )
             #
             run_time_settings = multiline_eval(expr=template_settings_dict, context=context)
-            #
-            flags = ''
-            for i in config["command_line_flag"]:
-                flags = f'{flags} {i}'
             #
             cmd_line_str = f'cd {working_dir} && pipenv run {main_path} {flags} {config["corresponding_input_flag"]} \"{run_time_settings}\"'
             self.cmd_line_call = cmd_line_str
@@ -553,10 +567,6 @@ class ApiHandler:
         return self.Results
 
 
-"""
-python function to compute dask cartesian product of multiple very memory demanding arrays,the main goals is memory conservation and of course performance and speed are important for any function working with such large numbers, use any libraries and tricks and algorythms as long as the result is correct
-"""
-
 if '__main__' == __name__:
     from logger_tt import setup_logging, logger
 
@@ -565,6 +575,8 @@ if '__main__' == __name__:
     EXAMPLE_INPUT_DICT = dict(
         Genie=dict(
             study_name='RLGL_XAUUSD',
+            # run_mode='legendary',
+            run_mode='legendary_genie',
             Strategy='mini_genie_source/Strategies/RLGL_Strategy.py',
             data_files_names=['XAUUSD'],
             # data_files_names=['OILUSD'],
@@ -583,6 +595,9 @@ if '__main__' == __name__:
             trading_fees=0.00005,  # 0.00005 or 0.005%, $5 per $100_000
             max_orders=1000,
         ),
+        # Data_Manager=dict(
+        #     report=True,
+        # ),
         # Filters=dict(
         #     study_name='RLGL_AUDUSD',
         #     # study_name='Test_Study',

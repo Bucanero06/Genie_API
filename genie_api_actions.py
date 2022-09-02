@@ -1,6 +1,7 @@
 ACTIONS_DICT = dict(
     Genie=dict(
         init='genie_obj = self.Genie_obj()',
+        run_mode='genie_obj.run_mode = str(run_mode)',
         data_files_names='genie_obj.data_files_names = [str(i) for i in data_files_names]',
         tick_size='genie_obj.tick_size = [float(i) for i in tick_size]',
         study_name='genie_obj.study_name = str(study_name)',

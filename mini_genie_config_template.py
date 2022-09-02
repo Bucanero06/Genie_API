@@ -29,7 +29,7 @@ config_template = """dict(
         #
         timer_limit=this_elsethis(timer_limit,datetime.timedelta(days=365, hours=0, minutes=0, seconds=0)) ,  
         Continue=this_elsethis(Continue,False),
-        run_mode="ludicrous",  # todo: ["ludicrous","..."]
+        run_mode=this_elsethis(run_mode,"ludicrous"),  # todo: ["ludicrous","..."]
         #
         batch_size=this_elsethis(batch_size,int(10)),
         save_every_nth_chunk=1,
