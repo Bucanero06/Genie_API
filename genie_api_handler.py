@@ -61,9 +61,10 @@ from utils import multiline_eval, return_unique_name_for_path, Execute
 # working_dir="/home/ruben/Programs/deletedir/mini_Genie",
 # main_path="/home/ruben/Programs/deletedir/mini_Genie/mini_genie_source/main_mini_genie.py",
 
-
+if not '__main__' == __name__:
+    from logger_tt import logger
 Spaces_Program_Info = dict(
-    working_dir="..",
+    working_dir=".",
     Genie=dict(
         template='from mini_genie_config_template import config_template\n config_template',
     ),
@@ -644,3 +645,5 @@ if '__main__' == __name__:
     api_handler.parse()
     # print(api_handler.df[['Template_Code', 'Variable_Value']])
     api_handler.run()
+
+
