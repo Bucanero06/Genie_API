@@ -78,7 +78,7 @@ Spaces_Program_Info = dict(
 )
 
 
-def _check_study_name(Spaces_Program_Info,study_name):
+def _check_study_name(Spaces_Program_Info, study_name):
     if "_Study_Name" in Spaces_Program_Info:
         if study_name:
             assert Spaces_Program_Info["_Study_Name"] == study_name
@@ -86,6 +86,7 @@ def _check_study_name(Spaces_Program_Info,study_name):
             study_name = Spaces_Program_Info["_Study_Name"]
     else:
         Spaces_Program_Info["_Study_Name"] = study_name
+
 
 class ApiHandler:
     def __init__(self, input_dict, actions_dict=ACTIONS_DICT):
@@ -135,7 +136,6 @@ class ApiHandler:
         self.dotdict = dotdict
 
     # """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-
 
     @staticmethod
     class Genie_obj:
@@ -210,17 +210,20 @@ class ApiHandler:
             from mini_Genie.mini_genie_source.main_mini_genie import call_genie
             from mini_Genie.mini_genie_source.Run_Time_Handler.run_time_handler import run_time_handler
             run_time_handler = run_time_handler(run_function=call_genie,
-                                                GP_DEFAULT=True,
-                                                UP_DEFAULT=False,
+                                                GP_DEFAULT=True if self.run_mode == "genie_pick" else False,
+                                                UP_DEFAULT=True if self.run_mode == "user_pick" else False,
                                                 # POST_ANALYSIS_DEFAULT=False,
                                                 CONFIG_FILE_DEFAULT=f"{temp_config_file_name}.run_time_settings"
                                                 )
 
-            for i in range(35):  # FIXME HOTFIX!!
-                print(f"GENIE_RUN: {i + 1}")
-                run_time_handler.call_run_function()
-                # Execute(self.cmd_line_call)
-                # Execute(self.cmd_line_call)
+            logger.info(f'{run_time_handler = }')
+
+            # fixme HOTFIX!!
+            if self.run_mode == "genie_pick":  # fixme HOTFIX!!
+                for i in range(80):  # fixme HOTFIX!!
+                    print(f"GENIE_RUN: {i + 1}")  # fixme HOTFIX!!
+                    run_time_handler.call_run_function()  # fixme HOTFIX!!
+            #
             run_time_handler.call_run_function()
             os.chdir(current_dir)
             remove(temp_config_file_path)
@@ -241,7 +244,7 @@ class ApiHandler:
             # todo if any of the methods were called, if only one run type selected then use context to compile a call
             #   other wise pop an error indicating only one type per run can be chosen
 
-            _check_study_name(Spaces_Program_Info,self.study_name)
+            _check_study_name(Spaces_Program_Info, self.study_name)
 
             working_dir = self.call_dict["working_dir"]
             template = self.call_dict["template"]
@@ -349,17 +352,22 @@ class ApiHandler:
 
         def run(self):
             # Do
-            _check_study_name(Spaces_Program_Info,self.study_name)
+            _check_study_name(Spaces_Program_Info, self.study_name)
             # Finally Do
-            self.study_path = f'{Spaces_Program_Info["Genie"]["working_dir"]}/Studies/{self.study_name}'
+            self.study_path = f'{Spaces_Program_Info["working_dir"]}/Studies/{self.study_name}'
             assert exists(self.study_path)
 
-            self.default_output_path = f'{Spaces_Program_Info["Genie"]["working_dir"]}/Studies/portfolio_stats.csv'
+            # FIXME not used and do not think it is needed, by default the same is set within the quick-filter module
+            self.default_output_path = f'{self.study_path}/portfolio_stats.csv'
 
             working_dir = Spaces_Program_Info["working_dir"]
             assert exists(working_dir)
-            main_path = self.call_dict["main_path"]
             template = self.call_dict["template"]
+
+            _check_study_name(Spaces_Program_Info, self.study_name)
+
+            working_dir = Spaces_Program_Info["working_dir"]
+
             #
             template_settings_dict = multiline_eval(expr=template)
             #
@@ -373,13 +381,43 @@ class ApiHandler:
                            # cpu_count=cpu_count,
                            )
             #
-            run_time_settings = multiline_eval(expr=template_settings_dict, context=context)
-            #
-            cmd_line_str = f'cd {working_dir} && pipenv run {main_path} {flags} {config["corresponding_input_flag"]} \"{run_time_settings}\"'
-            self.cmd_line_call = cmd_line_str
-            # self.returned_output = subprocess.call(self.cmd_line_call, shell=True)
-            self.returned_output = Execute(self.cmd_line_call)
+            # run_time_settings = multiline_eval(expr=template_settings_dict, context=context)
+            # #
+            # cmd_line_str = f'cd {working_dir} && pipenv run {main_path} {flags} {config["corresponding_input_flag"]} \"{run_time_settings}\"'
+            # self.cmd_line_call = cmd_line_str
+            # # self.returned_output = subprocess.call(self.cmd_line_call, shell=True)
+            # self.returned_output = Execute(self.cmd_line_call)
 
+            temp_config_file_name = f'temp_filters_run_time_settings.py'
+            temp_config_file_path = f'{working_dir}/{temp_config_file_name}'
+            run_time_settings = multiline_eval(expr=template_settings_dict, context=context)
+
+            # Change to the working directory
+            import os
+            current_dir = os.getcwd()
+            os.chdir(working_dir)
+
+            from Post_Processing_Genie.post_processing_genie_source.post_processing_genie_main import \
+                call_post_processing_genie
+            from Post_Processing_Genie.post_processing_genie_source.Run_Time_Handler.run_time_handler import \
+                run_time_handler
+            run_time_handler = run_time_handler(run_function=call_post_processing_genie,
+                                                STUDY_DIRECTORY_DEFAULT=self.study_path,
+                                                OVERFITTING_BOOL_DEFAULT=False,
+                                                FILTERS_BOOL_DEFAULT=True,
+                                                ANALYSIS_BOOL_DEFAULT=False,
+                                                ACTIONS_JSON=run_time_settings,
+                                                )
+
+            logger.info(f'{run_time_handler = }')
+
+            # for i in range(35):  # FIXME HOTFIX!!
+            #     print(f"GENIE_RUN: {i + 1}")
+            #     run_time_handler.call_run_function()
+            #     # Execute(self.cmd_line_call)
+            #     # Execute(self.cmd_line_call)
+            run_time_handler.call_run_function()
+            os.chdir(current_dir)
             return self
 
     # """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -577,7 +615,7 @@ if '__main__' == __name__:
         Genie=dict(
             study_name='RLGL_XAUUSD',
             # run_mode='legendary',
-            run_mode='legendary_genie',
+            run_mode='genie_pick',
             Strategy='mini_genie_source/Strategies/RLGL_Strategy.py',
             data_files_names=['XAUUSD'],
             # data_files_names=['OILUSD'],
@@ -599,20 +637,20 @@ if '__main__' == __name__:
         # Data_Manager=dict(
         #     report=True,
         # ),
-        # Filters=dict(
-        #     study_name='RLGL_AUDUSD',
-        #     # study_name='Test_Study',
-        #     # study_name='Study_OILUSD',
-        #     Min_total_trades=1,
-        #     Profit_factor=1.0,
-        #     Expectancy=0.01,
-        #     Daily_drawdown=0.05,
-        #     Total_drawdown=0.1,
-        #     Profit_for_month=0.1,
-        #     Total_Win_Rate=0.03,
-        #     quick_filters=True,
-        #     # delete_loners=True,
-        # ),
+        Filters=dict(
+            study_name='RLGL_AUDUSD',
+            # study_name='Test_Study',
+            # study_name='Study_OILUSD',
+            Min_total_trades=1,
+            Profit_factor=1.0,
+            Expectancy=0.01,
+            Daily_drawdown=0.05,
+            Total_drawdown=0.1,
+            Profit_for_month=0.1,
+            Total_Win_Rate=0.03,
+            quick_filters=True,
+            # delete_loners=True,
+        ),
         # MIP=dict(
         #     agg=True,
         # ),
@@ -645,5 +683,3 @@ if '__main__' == __name__:
     api_handler.parse()
     # print(api_handler.df[['Template_Code', 'Variable_Value']])
     api_handler.run()
-
-
