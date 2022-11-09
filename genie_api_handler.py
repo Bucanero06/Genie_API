@@ -47,6 +47,7 @@ Output e.g. id    parsed_string                      functions_to_evaluate
              5    ('Filters','quick_filters','delete_loners')                                   ('Filters','filters_obj = Filters_obj(pf_locations or masked_pf_,locations)','filters_obj.quick_filters()','filters_obj.run()')
 """
 import datetime
+import gc
 from multiprocessing import cpu_count
 from os import remove
 from os.path import exists
@@ -220,9 +221,10 @@ class ApiHandler:
 
             # fixme HOTFIX!!
             if self.run_mode == "genie_pick":  # fixme HOTFIX!!
-                for i in range(80):  # fixme HOTFIX!!
+                for i in range(1000000):  # fixme HOTFIX!!
                     print(f"GENIE_RUN: {i + 1}")  # fixme HOTFIX!!
                     run_time_handler.call_run_function()  # fixme HOTFIX!!
+                    gc.collect()  # fixme HOTFIX!!
             #
             run_time_handler.call_run_function()
             os.chdir(current_dir)
@@ -337,6 +339,7 @@ class ApiHandler:
             self.Profit_for_month = None
             self.Total_Win_Rate = None
             self.quick_filters = None
+
             #
             # self.delete_drawdown = None
             # self.delete_profit = None
